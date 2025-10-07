@@ -1,5 +1,7 @@
 # DSA-IE-DEMO
 
+_Deployed Link : https://dsa-ie-demo.vercel.app/_
+
 # JSON Graph Visualizer
 
 A browser-based web app that visualizes JSON files as interactive graphs, replicating Obsidian’s graph view with a focus on Data Structures and Algorithms (DSA) education. Parse JSON into nodes (📄 file, 📚 objects, 📋 arrays, 🗝️ keys) and edges (parent-child relationships), with dynamic updates, CodeSnap-style snippets, unique logos, and Gemini-powered features like smart explanations, DSA tutoring, JSON fixing, and dynamic JSON generation (e.g., BST tree). Aligned with graph DSA syllabus: adjacency list, BFS/DFS, Prim’s/Kruskal’s (MST), route planning, and social analysis.
