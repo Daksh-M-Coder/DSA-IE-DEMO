@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JSON Graph Visualizer — Obsidian-style</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-wZfT5m9s6y3JmQ3h7q7P7X3yqKq4mQzT9Wqj8yJbqv2cR6v1j5n3X1v4h2wO+7cQvJc3kQvXv3xM2Cj2zYF9Wg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" />
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #151821;
+      --panel-2: #1b2030;
+      --text: #e6e6e6;
+      --muted: #a8b3cf;
+      --accent: #6ea8fe;
+      --accent-2: #9bdbff;
+      --good: #35c46a;
+      --warn: #ffb020;
+      --error: #ff6b6b;
+      --graph-node: #2a2f42;
+      --graph-node-border: #4d5a7a;
+    }
+    /* Black theme (default) */
+    .theme-black {
+      --bg: #0f1115;
+      --panel: #151821;
+      --panel-2: #1b2030;
+      --text: #e6e6e6;
+      --muted: #5b6786;
+      --accent: #6ea8fe;
+      --accent-2: #9bdbff;
+      --good: #35c46a;
+      --warn: #ffb020;
+      --error: #ff6b6b;
+      --graph-node: #2a2f42;
+      --graph-node-border: #4d5a7a;
+    }
+    /* White theme */
+    .theme-white {
+      --bg: #f7f8fb;
+      --panel: #ffffff;
+      --panel-2: #eef2f7;
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent: #2563eb;
+      --accent-2: #1d4ed8;
+      --good: #16a34a;
+      --warn: #d97706;
+      --error: #dc2626;
+      --graph-node: #e2e8f0;
+      --graph-node-border: #94a3b8;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      color: var(--text);
+      background: radial-gradient(1000px 600px at 20% -10%, #192033 0%, var(--bg) 60%);
+      overflow: hidden;
+    }
+    body.theme-white {
+      background: radial-gradient(1000px 600px at 20% -10%, #e2e8f0 0%, var(--bg) 60%);
+    }
+    /* Top bar */
+    .topbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      background: linear-gradient(180deg, rgba(15,17,21,0.95) 0%, rgba(15,17,21,0.85) 100%);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(110,168,254,0.15);
+      z-index: 1000;
+    }
+    body.theme-white .topbar { background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(255,255,255,0.96) 100%); border-bottom: 1px solid #e2e8f0; }
+    .brand { font-weight: 700; letter-spacing: 0.2px; display:flex; align-items:center; gap:8px; }
+    .brand .logo { width: 28px; height: 28px; border-radius: 6px; background: linear-gradient(135deg, #6ea8fe, #9bdbff); display:grid; place-items:center; color:#0a0d14; font-weight: 800; }
+    .topbar .sep { width: 1px; height: 28px; background: rgba(168,179,207,0.2); margin: 0 4px; }
+    .control {
+      background: var(--panel);
+      border: 1px solid rgba(168,179,207,0.18);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 6px 10px;
+      height: 40px;
+    }
+    .control[type="file"] { padding: 6px; }
+    .btn { cursor: pointer; transition: 150ms ease background, 150ms ease transform; }
+    .btn:hover { background: var(--panel-2); }
+    .btn:active { transform: translateY(1px); }
+    .grow { flex: 1 1 auto; }
+    .right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+
+    /* Main layout */
+    .layout {
+      position: absolute;
+      top: 64px; left: 0; right: 0; bottom: 0;
+      display: grid;
+      grid-template-columns: 340px 1fr 360px;
+      grid-template-rows: 1fr;
+      gap: 10px;
+      padding: 10px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(168,179,207,0.15);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex; flex-direction: column;
+      min-height: 0;
+    }
+    body.theme-white .panel { border-color: #e5e7eb; }
+    .panel header { padding: 10px 12px; border-bottom: 1px solid rgba(168,179,207,0.12); font-weight: 600; display:flex; align-items:center; justify-content: space-between; }
+    .panel .body { padding: 0; overflow: auto; }
+    .panel .subheader { padding:8px 12px; border-bottom: 1px solid rgba(168,179,207,0.08); color: var(--muted); font-size: 12px; }
+
+    /* Left: Input / inspector */
+    #inputArea { width: 100%; height: 180px; resize: vertical; background: #0f1117; color: #e6e6e6; border: none; outline: none; font-family: "Fira Code", monospace; padding: 10px; border-top: 1px solid rgba(168,179,207,0.08); }
+    .section { padding: 10px 12px; border-bottom: 1px solid rgba(168,179,207,0.08); }
+    .error { color: var(--error); font-size: 12px; white-space: pre-wrap; }
+    .warn { color: var(--warn); font-size: 12px; }
+    .ok { color: var(--good); font-size: 12px; }
+    .list { font-family: "Fira Code", monospace; font-size: 12px; white-space: pre; padding: 10px 12px; }
+
+    /* Center: Graph */
+    #graph { position: relative; }
+    #graph svg { width: 100%; height: 100%; background: radial-gradient(1200px 700px at 80% -20%, #1b2236 0%, #111420 60%); }
+    body.theme-white #graph svg { background: radial-gradient(1200px 700px at 80% -20%, #e9eef6 0%, #f7f8fb 60%); }
+    .zoomHud { position: absolute; top: 10px; left: 10px; display: flex; gap: 8px; }
+    .zoomHud .tag { background: rgba(0,0,0,0.35); padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(168,179,207,0.15); font-size: 12px; }
+    .legend { position: absolute; bottom: 10px; left: 10px; display:flex; gap:10px; background: rgba(0,0,0,0.35); padding: 6px 10px; border-radius: 8px; border: 1px solid rgba(168,179,207,0.15); font-size: 12px; }
+    body.theme-white .zoomHud .tag, body.theme-white .legend { background: rgba(255,255,255,0.8); border-color: #e5e7eb; color: #0f172a; }
+    .legend span { display:flex; gap:6px; align-items:center; }
+    .badge {
+      width: 16px; height: 16px; border-radius: 50%;
+      border: 2px solid var(--graph-node-border);
+    }
+    .badge.file { background:#34466b; }
+    .badge.object { background:#3b6a56; }
+    .badge.array { background:#6a3b63; }
+    .badge.key { background:#6a553b; }
+    .algoHud { position: absolute; top: 10px; right: 10px; display:flex; gap:8px; }
+
+    /* Right: Alg visualizer / chat */
+    .tabs { display:flex; }
+    .tab { flex: 1; text-align:center; padding:8px; cursor:pointer; border-bottom:2px solid transparent; }
+    .tab.active { border-color: var(--accent); font-weight: 600; }
+    .sidebody { padding: 8px 0; overflow:auto; }
+    .kv { display:flex; justify-content:space-between; padding:6px 12px; font-family: "Fira Code"; font-size: 12px; }
+    .pill { display:inline-flex; align-items:center; gap:6px; background: rgba(110,168,254,0.12); color: var(--accent-2); padding: 4px 8px; border-radius: 999px; border: 1px solid rgba(110,168,254,0.2); font-size: 12px; }
+    .ul { list-style: none; padding: 6px 12px; margin: 0; font-family: "Fira Code"; font-size: 12px; }
+    .ul li { padding: 2px 0; }
+    .controls { padding: 8px 12px; display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
+    .controls input[type="range"] { width: 160px; }
+    .searchBar { padding: 8px 12px; display:flex; gap:8px; align-items:center; }
+    .searchBar input { flex: 1; }
+
+    /* Node modal (CodeSnap style) */
+    .modal { position: fixed; inset: 0; display:none; align-items:center; justify-content:center; background: rgba(0,0,0,0.45); z-index: 1100; }
+    .modal .card { width: 720px; max-width: 92vw; max-height: 80vh; background: #1e1e1e; border-radius: 12px; border: 1px solid rgba(168,179,207,0.15); overflow:hidden; display:flex; flex-direction:column; }
+    .codesnap-bar { display:flex; align-items:center; gap:8px; padding: 8px 12px; background: #1b1b1b; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .dots { display:flex; gap:6px; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot.red { background:#ff5f56; }
+    .dot.yellow { background:#ffbd2e; }
+    .dot.green { background:#27c93f; }
+    .modal pre { margin:0; background:#1e1e1e; color:#e6e6e6; font-family: "Fira Code"; font-size: 12px; }
+    .modal footer { padding: 8px 12px; display:flex; gap:8px; justify-content:flex-end; background:#141414; border-top:1px solid rgba(255,255,255,0.06); }
+
+    /* Context menu */
+    .ctxMenu { position: fixed; display:none; background:#1b2030; border:1px solid rgba(168,179,207,0.18); border-radius: 8px; min-width: 180px; overflow:hidden; z-index: 1200; }
+    .ctxMenu button { display:block; width:100%; background:transparent; color:var(--text); border:none; text-align:left; padding:8px 10px; cursor:pointer; }
+    .ctxMenu button:hover { background:#22293d; }
+    body.theme-white .ctxMenu { background:#ffffff; border-color:#e5e7eb; }
+    body.theme-white .ctxMenu button:hover { background:#f1f5f9; }
+
+    /* Breadcrumbs */
+    .breadcrumbs { padding: 6px 10px; border-bottom: 1px solid rgba(168,179,207,0.08); font-size: 12px; }
+    .breadcrumbs .crumb { color: var(--muted); cursor: pointer; }
+    .breadcrumbs .sep { margin: 0 6px; color: #445; }
+
+    /* Minimal mode */
+    .minimal .left, .minimal .rightPane, .minimal .legend, .minimal .algoHud { display:none !important; }
+    .minimal .layout { grid-template-columns: 1fr; }
+
+    /* Chat (bottom-right floating) */
+    .chatToggle { position: fixed; right: 16px; bottom: 16px; z-index: 1050; }
+    .chatPanel { position: fixed; right: 16px; bottom: 76px; width: 360px; max-width: 92vw; height: 420px; background: var(--panel); border: 1px solid rgba(168,179,207,0.15); border-radius: 12px; overflow: hidden; display:none; z-index: 1050; }
+    .chatPanel header { padding: 8px 12px; border-bottom: 1px solid rgba(168,179,207,0.12); display:flex; justify-content: space-between; align-items:center; }
+    .chatBody { padding: 8px 12px; height: 320px; overflow: auto; font-size: 14px; }
+    .chatInput { display:flex; gap:8px; padding: 8px; border-top: 1px solid rgba(168,179,207,0.12); }
+    .chatInput textarea { flex:1; height: 64px; resize: none; background:#0f1117; color:#e6e6e6; border:1px solid rgba(168,179,207,0.15); border-radius:8px; padding:8px; font-family: Inter; }
+    .msg { margin:8px 0; }
+    .msg.user { text-align: right; }
+    .msg .bubble { display:inline-block; padding:8px 10px; border-radius:10px; max-width: 90%; }
+    .msg.user .bubble { background:#2b3454; }
+    .msg.ai .bubble { background:#1b2238; }
+
+    /* Toast */
+    .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: 20px; background:#1b2030; color:#e6e6e6; border:1px solid rgba(168,179,207,0.18); border-radius: 999px; padding:8px 14px; display:none; z-index: 1300; }
+    body.theme-white .toast { background:#ffffff; color:#0f172a; border-color:#e5e7eb; }
+
+    /* Utility */
+    .hidden { display:none !important; }
+    .flex { display:flex; }
+    .gap8 { gap:8px; }
+    .mr8 { margin-right: 8px; }
+    .w100 { width:100%; }
+  </style>
+</head>
+<body>
+  <div class="topbar" id="topbar">
+    <div class="brand"><div class="logo">🕸️</div> JSON Graph Visualizer</div>
+    <div class="sep"></div>
+    <label class="btn control" title="Upload JSON"><input type="file" id="fileInput" class="control" accept=".json,.txt,application/json" /></label>
+    <button id="pasteBtn" class="btn control">📋 Paste</button>
+    <div class="control grow" style="display:flex; align-items:center; gap:8px; padding: 4px 8px;">
+      📐
+      <input id="depthSlider" type="range" min="1" max="5" step="1" value="5" />
+      <span id="depthValue" class="pill">Depth: 5</span>
+    </div>
+    <select id="themeSelect" class="control btn">
+      <option value="black" selected>Black</option>
+      <option value="white">White</option>
+    </select>
+    <button id="fitBtn" class="btn control" title="Fit to view (F)">🖼️</button>
+    <button id="exportBtn" class="btn control" title="Export .jsongraph">💾 Export</button>
+    <button id="importBtn" class="btn control" title="Import .jsongraph or .json">📂 Import</button>
+    <div class="right">
+      <span id="zoomIndicator" class="pill">120%</span>
+      <button id="minimalBtn" class="btn control" title="Minimal mode (M)">🪄</button>
+    </div>
+  </div>
+
+  <div class="layout" id="layout">
+    <!-- Left sidebar -->
+    <div class="panel left">
+      <header>
+        <span><i class="fa fa-code"></i> JSON Input</span>
+        <div class="flex gap8">
+          <button id="fixJsonBtn" class="btn control" title="Fix with AI (mock)">🪄</button>
+          <button id="clearBtn" class="btn control" title="Clear">🧹</button>
+        </div>
+      </header>
+      <div class="breadcrumbs" id="breadcrumbs">📄 <span class="muted">No file</span></div>
+      <div class="section">
+        <textarea id="inputArea" placeholder="Paste JSON here (limit 1000 lines)"></textarea>
+        <div id="inputStatus" class="error"></div>
+      </div>
+      <div class="subheader">Adjacency List Inspector</div>
+      <pre class="list" id="adjList">{}</pre>
+      <div class="subheader">Tips</div>
+      <div class="section" style="font-size:12px; color:var(--muted)">
+        - Right-click nodes for actions. Scroll to zoom, drag to pan.
+      </div>
+    </div>
+
+    <!-- Graph center -->
+    <div class="panel" id="graph">
+      <div class="zoomHud">
+        <span class="tag">Pan: drag | Zoom: wheel</span>
+        <span class="tag">Clamp: 0.5×–5×</span>
+      </div>
+      <div class="algoHud">
+        <button id="bfsBtn" class="btn control" title="BFS traversal">🧭 BFS</button>
+        <button id="dfsBtn" class="btn control" title="DFS traversal">🥾 DFS</button>
+        <button id="mstBtn" class="btn control" title="MST (Prim/Kruskal)">🌳 MST</button>
+      </div>
+      <svg id="svg"></svg>
+      <div class="legend">
+        <span><span class="badge file"></span> 📄 file</span>
+        <span><span class="badge object"></span> 📚 object</span>
+        <span><span class="badge array"></span> 📋 array</span>
+        <span><span class="badge key"></span> 🗝️ key</span>
+      </div>
+    </div>
+
+    <!-- Right pane: algorithms / chat -->
+    <div class="panel rightPane">
+      <header>
+        <span>🔬 Algorithms & Tools</span>
+        <span class="pill" id="algoStatus">Idle</span>
+      </header>
+      <div class="tabs">
+        <div class="tab active" data-tab="traversal">🧪 Traversal</div>
+        <div class="tab" data-tab="search">🔎 Search</div>
+        <div class="tab" data-tab="stats">📊 Stats</div>
+      </div>
+      <div class="sidebody" id="tab-traversal">
+        <div class="controls">
+          <label class="pill">⏱️ Speed</label>
+          <input id="speedSlider" type="range" min="100" max="2000" step="100" value="500" />
+          <button id="pauseBtn" class="btn control">⏸️</button>
+          <button id="resetBtn" class="btn control">🔄</button>
+        </div>
+        <div class="kv"><span>Structure</span><span id="algoType">BFS</span></div>
+        <div class="kv"><span>Step</span><span id="stepCount">0</span></div>
+        <div class="subheader">Queue / Stack (limit 50)</div>
+        <ul class="ul" id="workList"></ul>
+        <div class="subheader">Visited</div>
+        <ul class="ul" id="visitedList"></ul>
+        <div class="subheader">Narrator</div>
+        <div class="section" id="narrator" style="font-size:13px"></div>
+      </div>
+      <div class="sidebody hidden" id="tab-search">
+        <div class="searchBar">
+          <input id="searchInput" class="control" placeholder="Search key (BFS/DFS)" />
+          <select id="searchAlgo" class="control"><option value="bfs">BFS</option><option value="dfs">DFS</option></select>
+          <button id="searchBtn" class="btn control">🔎</button>
+        </div>
+        <div class="section" id="searchResults" style="font-size:13px"></div>
+      </div>
+      <div class="sidebody hidden" id="tab-stats">
+        <div class="kv"><span>Nodes</span><span id="statNodes">0</span></div>
+        <div class="kv"><span>Edges</span><span id="statEdges">0</span></div>
+        <div class="kv"><span>Depth</span><span id="statDepth">0</span></div>
+        <div class="kv"><span>JSON Size</span><span id="statSize">0 KB</span></div>
+        <div class="kv"><span>Algorithm</span><span id="statAlgo">-</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Context menu -->
+  <div class="ctxMenu" id="ctxMenu">
+    <button data-action="snippet">👁️ View Snippet</button>
+    <button data-action="path">🪜 Find Path to Root</button>
+    <button data-action="subtree">🖍️ Highlight Subtree</button>
+    <button data-action="copykey">📄 Copy Key Path</button>
+  </div>
+
+  <!-- Node modal -->
+  <div class="modal" id="nodeModal">
+    <div class="card">
+      <div class="codesnap-bar">
+        <div class="dots"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div>
+        <div class="grow"></div>
+        <button id="modalCopyBtn" class="btn control">📋</button>
+        <button id="modalAskBtn" class="btn control">🤖 Ask Gemini</button>
+        <button id="modalCloseBtn" class="btn control">✖️</button>
+      </div>
+      <pre><code class="language-json" id="modalCode">{}</code></pre>
+      <footer>
+        <span class="pill" id="modalMeta">Lines: 0</span>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Chat floating UI -->
+  
+
+  <div id="toast" class="toast"></div>
+
+  <!-- Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+
+  <script>
+    // ---- App State ----
+    const state = {
+      rawText: '',
+      rootName: 'root.json',
+      json: null,
+      nodes: [], // { id, label, type, path, value, depth }
+      edges: [], // { source, target }
+      idToNode: new Map(),
+      pathToId: new Map(),
+      positions: {}, // id -> {x,y}
+      zoom: 1.2,
+      depthLimit: 5,
+      maxNodes: 500,
+      traversal: { running:false, algo:'bfs', delay:500, paused:false, timer:null, narrator:[] },
+      selection: null,
+      persisted: {},
+    };
+
+    // ---- Utilities ----
+    const $ = sel => document.querySelector(sel);
+    const $$ = sel => Array.from(document.querySelectorAll(sel));
+    function toast(msg, kind='info', ms=2000) {
+      const el = $('#toast');
+      el.textContent = msg;
+      el.style.display = 'inline-block';
+      setTimeout(()=>{ el.style.display='none'; }, ms);
+    }
+    function debounce(fn, wait=300) {
+      let t; return (...args)=>{ clearTimeout(t); t = setTimeout(()=>fn(...args), wait); };
+    }
+    function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+    function approxSize(text) { return (new Blob([text])).size; }
+
+    // ---- Local persistence ----
+    const STORAGE_KEY = 'json-graph-obsidian';
+    function saveLocal() {
+      const payload = {
+        rawText: state.rawText,
+        rootName: state.rootName,
+        theme: $('#themeSelect').value,
+        depth: state.depthLimit,
+        positions: state.positions,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    }
+    function loadLocal() {
+      try {
+        const t = localStorage.getItem(STORAGE_KEY);
+        if (!t) return; const p = JSON.parse(t);
+        state.rootName = p.rootName || state.rootName;
+        state.rawText = p.rawText || '';
+        $('#themeSelect').value = p.theme || 'black';
+        applyTheme($('#themeSelect').value);
+        state.depthLimit = p.depth || 5; $('#depthSlider').value = state.depthLimit; $('#depthValue').textContent = `Depth: ${state.depthLimit}`;
+        state.positions = p.positions || {};
+        $('#inputArea').value = state.rawText;
+      } catch (e) {}
+    }
+
+    // Theme
+    function applyTheme(name){
+      document.body.classList.remove('theme-black', 'theme-white');
+      if (name === 'white') document.body.classList.add('theme-white'); else document.body.classList.add('theme-black');
+    }
+
+    // ---- JSON Parsing and Graph building ----
+    function detectCycles(obj) {
+      const seen = new WeakSet();
+      try {
+        (function walk(o){
+          if (o && typeof o === 'object') {
+            if (seen.has(o)) throw new Error('Cycle');
+            seen.add(o);
+            for (const k in o) walk(o[k]);
+          }
+        })(obj);
+        return false;
+      } catch (e) { return true; }
+    }
+
+    function toGraph(json, rootLabel) {
+      const nodes = []; const edges = []; const idToNode = new Map(); const pathToId = new Map();
+      let idSeq = 0; let nodeCount = 0; let maxDepth = 0; let cycleWarn = false;
+
+      function addNode(label, type, path, value, depth) {
+        const id = `${idSeq++}`;
+        const node = { id, label, type, path, value, depth };
+        nodes.push(node); idToNode.set(id, node); pathToId.set(path, id);
+        nodeCount++; maxDepth = Math.max(maxDepth, depth);
+        return id;
+      }
+
+      function walk(value, parentId, path, depth) {
+        if (nodeCount >= state.maxNodes) return;
+        const t = Array.isArray(value) ? 'array' : (value !== null && typeof value === 'object') ? 'object' : 'primitive';
+        if (t === 'object' || t === 'array') {
+          const type = t;
+          const id = addNode(path.split('.').pop() || (t==='object'?'object':'array'), type, path, value, depth);
+          if (parentId != null) edges.push({ source: parentId, target: id });
+          if (depth < state.depthLimit) {
+            const keys = t==='array' ? value.map((_,i)=>i) : Object.keys(value);
+            for (const k of keys) {
+              if (nodeCount >= state.maxNodes) break;
+              const keyId = addNode(String(k), 'key', `${path}.${k}`, value[k], depth+1);
+              edges.push({ source: id, target: keyId });
+              // Recurse to value node only if it is object/array
+              if (value[k] && typeof value[k] === 'object') {
+                walk(value[k], keyId, `${path}.${k}`, depth+2);
+              }
+            }
+          }
+        } else {
+          const id = addNode(String(value), 'primitive', path, value, depth);
+          if (parentId != null) edges.push({ source: parentId, target: id });
+        }
+      }
+
+      const rootId = addNode(rootLabel || 'file', 'file', rootLabel || 'file', json, 0);
+      walk(json, rootId, rootLabel || 'file', 1);
+      cycleWarn = detectCycles(json);
+      return { nodes, edges, idToNode, pathToId, maxDepth, cycleWarn };
+    }
+
+    function updateAdjacencyList(nodes, edges) {
+      const adj = {};
+      for (const n of nodes) adj[n.label] = [];
+      for (const e of edges) {
+        const a = state.idToNode.get(e.source)?.label || e.source;
+        const b = state.idToNode.get(e.target)?.label || e.target;
+        if (!adj[a]) adj[a] = [];
+        adj[a].push(b);
+      }
+      const pruned = {};
+      for (const k of Object.keys(adj)) pruned[k] = adj[k].slice(0, 20);
+      $('#adjList').textContent = JSON.stringify(pruned, null, 2);
+    }
+
+    const parseInput = debounce(() => {
+      const text = $('#inputArea').value || '';
+      state.rawText = text;
+      saveLocal();
+      const status = $('#inputStatus');
+      status.textContent = '';
+      const lines = text.split(/\r?\n/);
+      if (lines.length > 1000) {
+        status.textContent = 'Large JSON: limited to first 1000 lines.';
+      }
+      let parsed;
+      try {
+        parsed = JSON.parse(lines.slice(0, 1000).join('\n'));
+      } catch (e) {
+        status.textContent = `Invalid JSON: ${e.message}. Use "Fix with AI".`;
+        return;
+      }
+      buildGraph(parsed);
+    }, 300);
+
+    function buildGraph(json) {
+      const g = toGraph(json, state.rootName);
+      if (g.nodes.length >= state.maxNodes) toast('Too many nodes. Capped at 500.', 'warn');
+      state.json = json;
+      state.nodes = g.nodes; state.edges = g.edges; state.idToNode = g.idToNode; state.pathToId = g.pathToId;
+      updateAdjacencyList(state.nodes, state.edges);
+      const sizeKB = (approxSize(state.rawText)/1024).toFixed(2);
+      $('#statNodes').textContent = String(state.nodes.length);
+      $('#statEdges').textContent = String(state.edges.length);
+      $('#statDepth').textContent = String(g.maxDepth);
+      $('#statSize').textContent = `${sizeKB} KB`;
+      if (g.cycleWarn) $('#inputStatus').textContent = 'Circular reference detected (warning).';
+      renderGraph(true);
+    }
+
+    // ---- D3 Graph ----
+    const svg = d3.select('#svg');
+    const gZoom = svg.append('g');
+    const linkLayer = gZoom.append('g').attr('stroke', '#44516f').attr('stroke-opacity', 0.6);
+    const nodeLayer = gZoom.append('g');
+
+    const zoomBehavior = d3.zoom().scaleExtent([0.5, 5]).on('zoom', (event)=>{
+      gZoom.attr('transform', event.transform);
+      state.zoom = event.transform.k;
+      $('#zoomIndicator').textContent = `${Math.round(state.zoom*100)}%`;
+    });
+    svg.call(zoomBehavior);
+
+    let sim = null;
+    function iconFor(node) {
+      switch(node.type){
+        case 'file': return '📄';
+        case 'object': return '📚';
+        case 'array': return '📋';
+        case 'key': return '🗝️';
+        default: return '•';
+      }
+    }
+
+    function colorFor(node){
+      switch(node.type){
+        case 'file': return '#34466b';
+        case 'object': return '#326d56';
+        case 'array': return '#6a3b63';
+        case 'key': return '#6a553b';
+        default: return '#2a2f42';
+      }
+    }
+
+    function renderGraph(restart=false){
+      const nodes = state.nodes.map(n=>({ ...n }));
+      const edges = state.edges.map(e=>({ ...e }));
+
+      // Data join
+      const link = linkLayer.selectAll('line').data(edges, d=>d.source+"->"+d.target);
+      link.exit().remove();
+      link.enter().append('line').attr('stroke-width', 1.2);
+
+      const node = nodeLayer.selectAll('g.node').data(nodes, d=>d.id);
+      node.exit().remove();
+      const nodeEnter = node.enter().append('g').attr('class','node').attr('cursor','pointer')
+        .on('click', (event,d)=>{ event.stopPropagation(); onNodeClick(d); })
+        .on('contextmenu', (event, d)=>{ event.preventDefault(); showCtxMenu(event, d); })
+        .attr('title', 'Right-click for actions');
+      nodeEnter.append('circle').attr('r', 14).attr('fill', d=>colorFor(d)).attr('stroke', '#4d5a7a');
+      nodeEnter.append('text').attr('text-anchor','middle').attr('y', 5).text(d=>iconFor(d));
+      nodeEnter.append('text').attr('class','label').attr('y', 28).attr('text-anchor','middle').attr('fill','#a8b3cf').attr('font-size','10px')
+        .text(d=>d.label.length>18? d.label.slice(0,17)+'…' : d.label);
+
+      const nodeAll = nodeEnter.merge(node);
+
+      // Restore positions
+      nodeAll.each(function(d){ const p = state.positions[d.id]; if (p) { d.x=p.x; d.y=p.y; } });
+
+      if (!sim || restart) {
+        if (sim) sim.stop();
+        sim = d3.forceSimulation(nodes)
+          .force('charge', d3.forceManyBody().strength(-120))
+          .force('link', d3.forceLink(edges).id(d=>d.id).distance(40).strength(0.6))
+          .force('center', d3.forceCenter(svg.node().clientWidth/2, svg.node().clientHeight/2))
+          .force('collision', d3.forceCollide().radius(24));
+      } else {
+        sim.nodes(nodes);
+        sim.force('link').links(edges);
+        sim.alpha(0.6).restart();
+      }
+
+      sim.on('tick', ()=>{
+        linkLayer.selectAll('line')
+          .attr('x1', d=>getNode(nodes, d.source).x)
+          .attr('y1', d=>getNode(nodes, d.source).y)
+          .attr('x2', d=>getNode(nodes, d.target).x)
+          .attr('y2', d=>getNode(nodes, d.target).y);
+        nodeAll.attr('transform', d=>`translate(${d.x},${d.y})`);
+      });
+
+      sim.on('end', ()=>{
+        // Save positions
+        for (const n of nodes) state.positions[n.id] = { x: n.x, y: n.y };
+        saveLocal();
+      });
+    }
+
+    function getNode(nodes, ref){
+      return typeof ref === 'object' ? ref : nodes.find(n=>n.id===ref);
+    }
+
+    function fitToView(){
+      const bbox = gZoom.node().getBBox();
+      const w = svg.node().clientWidth, h = svg.node().clientHeight;
+      const scale = clamp(Math.min(w / (bbox.width+80), h / (bbox.height+80)), 0.5, 5);
+      const tx = (w - (bbox.x + bbox.width/2)*scale);
+      const ty = (h - (bbox.y + bbox.height/2)*scale);
+      const transform = d3.zoomIdentity.translate(tx, ty).scale(scale);
+      svg.transition().duration(300).call(zoomBehavior.transform, transform);
+    }
+
+    // ---- Node interactions ----
+    function onNodeClick(node){
+      state.selection = node;
+      updateBreadcrumbs(node);
+      const snippet = JSON.stringify(node.value, null, 2) || String(node.value);
+      const lines = snippet.split(/\r?\n/);
+      const limited = lines.slice(0, 100).join('\n');
+      $('#modalCode').textContent = limited;
+      $('#modalMeta').textContent = `Lines: ${Math.min(100, lines.length)}`;
+      Prism.highlightElement($('#modalCode'));
+      $('#nodeModal').style.display = 'flex';
+    }
+
+    function updateBreadcrumbs(node){
+      const parts = node.path.split('.');
+      const chain = [];
+      let acc = '';
+      for (let i=0;i<parts.length;i++){
+        acc = i===0 ? parts[0] : acc + '.' + parts[i];
+        chain.push({ label: parts[i], path: acc });
+      }
+      const truncated = chain.slice(-5);
+      const el = $('#breadcrumbs');
+      el.innerHTML = '';
+      const frag = document.createDocumentFragment();
+      const pre = document.createElement('span'); pre.textContent = '📄 '; frag.appendChild(pre);
+      truncated.forEach((c, idx)=>{
+        const span = document.createElement('span'); span.className = 'crumb'; span.textContent = c.label;
+        span.onclick = ()=>{
+          const id = state.pathToId.get(c.path); const n = state.idToNode.get(id);
+          if (!n) return; centerOnNode(id);
+        };
+        frag.appendChild(span);
+        if (idx < truncated.length-1){ const sep=document.createElement('span'); sep.className='sep'; sep.textContent='›'; frag.appendChild(sep); }
+      });
+      el.appendChild(frag);
+    }
+
+    function centerOnNode(id){
+      const p = state.positions[id]; if (!p) return;
+      const w = svg.node().clientWidth, h = svg.node().clientHeight;
+      const scale = clamp(state.zoom, 0.5, 5);
+      const transform = d3.zoomIdentity.translate(w/2 - p.x*scale, h/2 - p.y*scale).scale(scale);
+      svg.transition().duration(300).call(zoomBehavior.transform, transform);
+    }
+
+    // ---- Context menu ----
+    let ctxNode = null;
+    function showCtxMenu(event, node){
+      ctxNode = node; const menu = $('#ctxMenu');
+      const vw = window.innerWidth, vh = window.innerHeight;
+      let x = event.clientX, y = event.clientY;
+      const mw = 200, mh = 160;
+      if (x+mw > vw) x = vw - mw - 8; if (y+mh > vh) y = vh - mh - 8;
+      menu.style.left = x+'px'; menu.style.top = y+'px';
+      menu.style.display = 'block';
+    }
+    document.addEventListener('click', ()=> $('#ctxMenu').style.display='none');
+    $('#ctxMenu').addEventListener('click', (e)=>{
+      const action = e.target.closest('button')?.dataset.action; if (!action || !ctxNode) return;
+      if (action==='snippet') onNodeClick(ctxNode);
+      if (action==='path') { toast('Path highlighted to root'); highlightPathToRoot(ctxNode); }
+      if (action==='subtree') { highlightSubtree(ctxNode); }
+      if (action==='copykey') { copyKeyPath(ctxNode); }
+      $('#ctxMenu').style.display='none';
+    });
+
+    function highlightPathToRoot(node){
+      const ids = []; let p = node;
+      while (p) { ids.push(p.id); const parentEdge = state.edges.find(e=>e.target===p.id); p = parentEdge ? state.idToNode.get(parentEdge.source) : null; }
+      nodeLayer.selectAll('g.node circle').attr('stroke', d=> ids.includes(d.id)? '#9bdbff' : '#4d5a7a').attr('stroke-width', d=> ids.includes(d.id)? 2.5 : 1.2);
+    }
+    function highlightSubtree(node){
+      const ids = new Set([node.id]);
+      const stack = [node.id];
+      while (stack.length){
+        const cur = stack.pop();
+        for (const e of state.edges){ if (e.source===cur && !ids.has(e.target)) { ids.add(e.target); stack.push(e.target); } }
+      }
+      nodeLayer.selectAll('g.node circle').attr('stroke', d=> ids.has(d.id)? '#35c46a' : '#4d5a7a').attr('stroke-width', d=> ids.has(d.id)? 2.5 : 1.2);
+    }
+    async function copyKeyPath(node){
+      const path = node.path.replace(state.rootName+'.','');
+      try { await navigator.clipboard.writeText(path); toast('Copied: '+path); } catch(e) {}
+    }
+
+    // ---- Traversal & Search ----
+    function neighbors(id){
+      return state.edges.filter(e=>e.source===id).map(e=>e.target);
+    }
+    function resetHighlights(){
+      nodeLayer.selectAll('g.node circle').attr('stroke', '#4d5a7a').attr('stroke-width', 1.2).attr('filter', null);
+    }
+    function pulse(id, color){
+      nodeLayer.selectAll('g.node').filter(d=>d.id===id).select('circle')
+        .transition().duration(150).attr('stroke', color).attr('stroke-width', 3)
+        .transition().duration(150).attr('stroke-width', 1.8);
+    }
+
+    async function runSearch(targetKey, algo){
+      resetHighlights();
+      $('#algoStatus').textContent = 'Running';
+      $('#algoType').textContent = algo.toUpperCase();
+      $('#statAlgo').textContent = algo.toUpperCase();
+      $('#searchResults').textContent = '';
+      $('#workList').innerHTML = ''; $('#visitedList').innerHTML = ''; $('#narrator').textContent = '';
+      const delay = state.traversal.delay;
+      const startId = state.nodes.find(n=>n.type==='file')?.id; if (!startId) return;
+      const work = [startId]; const visited = new Set(); let step=0;
+      function pushWork(x){ const li = document.createElement('li'); li.textContent = x; const ul=$('#workList'); ul.insertBefore(li, ul.firstChild); while (ul.children.length>50) ul.removeChild(ul.lastChild); }
+      function pushVisited(x){ const li = document.createElement('li'); li.textContent = x; const ul=$('#visitedList'); ul.insertBefore(li, ul.firstChild); while (ul.children.length>50) ul.removeChild(ul.lastChild); }
+      pushWork(state.idToNode.get(startId).label);
+
+      while (work.length) {
+        if (state.traversal.paused) { await new Promise(r=>setTimeout(r,50)); continue; }
+        const cur = algo==='bfs' ? work.shift() : work.pop();
+        const curNode = state.idToNode.get(cur);
+        visited.add(cur);
+        pushVisited(curNode.label);
+        $('#stepCount').textContent = String(++step);
+        // Colors: blue->yellow->green
+        pulse(cur, '#6ea8fe');
+        await sleep(delay);
+        if (curNode.type==='key' && curNode.label===targetKey) {
+          pulse(cur, '#35c46a');
+          $('#narrator').textContent = `Found key "${targetKey}" at path ${curNode.path}.`;
+          $('#searchResults').textContent = `Found: ${curNode.path}`;
+          $('#algoStatus').textContent = 'Done';
+          return cur;
+        }
+        for (const nb of neighbors(cur)) {
+          if (!visited.has(nb) && !work.includes(nb)) { work.push(nb); pushWork(state.idToNode.get(nb).label); }
+        }
+        $('#narrator').textContent = `Visiting ${curNode.label}…`;
+        await sleep(delay);
+      }
+      $('#narrator').textContent = 'Not found.';
+      $('#searchResults').textContent = 'Not found';
+      $('#algoStatus').textContent = 'Done';
+      return null;
+    }
+
+    function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+
+    // ---- MST (Prim/Kruskal) — unit weights demo ----
+    function runMST(){
+      // For visualization only; treat edges as undirected unit weight
+      const nodes = state.nodes.map(n=>n.id);
+      const edges = state.edges.map(e=>({ u:e.source, v:e.target, w:1 }));
+      // Kruskal
+      const parent = new Map(nodes.map(n=>[n,n]));
+      function find(x){ while (parent.get(x)!==x) x = parent.get(x); return x; }
+      function unite(a,b){ a=find(a); b=find(b); if (a!==b) parent.set(a,b); }
+      const mst=[];
+      for (const e of edges) {
+        if (find(e.u) !== find(e.v)) { mst.push(e); unite(e.u,e.v); }
+      }
+      // Highlight MST edges
+      linkLayer.selectAll('line').attr('stroke', d=> mst.find(m=>m.u===d.source && m.v===d.target)? '#9bdbff' : '#44516f').attr('stroke-width', d=> mst.find(m=>m.u===d.source && m.v===d.target)? 2.5 : 1.2);
+      $('#statAlgo').textContent = 'MST (Kruskal)';
+      toast('MST mode: highlighted spanning edges');
+    }
+
+    // ---- Export/Import ----
+    function exportGraph(){
+      const summary = makeSummary();
+      const payload = {
+        version: 1,
+        rootName: state.rootName,
+        nodes: state.nodes,
+        edges: state.edges,
+        positions: state.positions,
+        theme: $('#themeSelect').value,
+        depth: state.depthLimit,
+        summary,
+      };
+      const blob = new Blob([JSON.stringify(payload,null,2)], { type:'application/json' });
+      const a = document.createElement('a');
+      a.download = 'graph.jsongraph';
+      a.href = URL.createObjectURL(blob); a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    function importGraph(){
+      const inp = document.createElement('input'); inp.type='file'; inp.accept='.jsongraph,application/json';
+      inp.onchange = async ()=>{
+        const f = inp.files[0]; if (!f) return;
+        try {
+          const text = await f.text(); const data = JSON.parse(text);
+          if (!data.nodes || !data.edges) throw new Error('Invalid jsongraph');
+          state.rootName = data.rootName || 'import.json';
+          state.nodes = data.nodes; state.edges = data.edges; state.positions = data.positions||{};
+          state.idToNode = new Map(state.nodes.map(n=>[n.id,n]));
+          state.pathToId = new Map(state.nodes.map(n=>[n.path,n.id]));
+          $('#themeSelect').value = data.theme === 'white' ? 'white' : 'black';
+          applyTheme($('#themeSelect').value);
+          state.depthLimit = data.depth || 5; $('#depthSlider').value = state.depthLimit; $('#depthValue').textContent = `Depth: ${state.depthLimit}`;
+          renderGraph(true);
+          toast('Imported graph');
+        } catch (e) { toast('Import error: '+e.message, 'error'); }
+      };
+      inp.click();
+    }
+
+    function makeSummary(){
+      return `Root: ${state.rootName}, Nodes: ${state.nodes.length}, Edges: ${state.edges.length}, Depth: ${$('#statDepth').textContent}`;
+    }
+
+    // Gemini removed
+
+    // ---- Event wiring ----
+    $('#inputArea').addEventListener('input', parseInput);
+    $('#depthSlider').addEventListener('input', (e)=>{ state.depthLimit = parseInt(e.target.value,10); $('#depthValue').textContent = `Depth: ${state.depthLimit}`; if (state.json) buildGraph(state.json); saveLocal(); });
+    $('#fitBtn').addEventListener('click', fitToView);
+    $('#minimalBtn').addEventListener('click', ()=>{ document.body.classList.toggle('minimal'); });
+    $('#bfsBtn').addEventListener('click', ()=>{ $('#algoType').textContent='BFS'; $('#statAlgo').textContent='BFS'; state.traversal.algo='bfs'; });
+    $('#dfsBtn').addEventListener('click', ()=>{ $('#algoType').textContent='DFS'; $('#statAlgo').textContent='DFS'; state.traversal.algo='dfs'; });
+    $('#mstBtn').addEventListener('click', runMST);
+    $('#speedSlider').addEventListener('input', (e)=>{ state.traversal.delay = parseInt(e.target.value,10); });
+    $('#pauseBtn').addEventListener('click', ()=>{ state.traversal.paused = !state.traversal.paused; toast(state.traversal.paused? 'Paused' : 'Resumed'); });
+    $('#resetBtn').addEventListener('click', ()=>{ resetHighlights(); $('#algoStatus').textContent='Idle'; $('#workList').innerHTML=''; $('#visitedList').innerHTML=''; $('#narrator').textContent=''; $('#stepCount').textContent='0'; });
+    $('#searchBtn').addEventListener('click', async ()=>{
+      const key = $('#searchInput').value.trim(); if (!key) return; const algo=$('#searchAlgo').value; await runSearch(key, algo);
+    });
+    $('#searchInput').addEventListener('keydown', (e)=>{ if (e.key==='Enter') $('#searchBtn').click(); });
+
+    // Tabs switching (Traversal / Search / Stats)
+    function switchTab(name){
+      $$('.tab').forEach(t=> t.classList.toggle('active', t.dataset.tab===name));
+      ['traversal','search','stats'].forEach(n=>{
+        const el = document.getElementById('tab-'+n);
+        if (!el) return;
+        if (n===name) el.classList.remove('hidden'); else el.classList.add('hidden');
+      });
+    }
+    $$('.tab').forEach(t=> t.addEventListener('click', ()=> switchTab(t.dataset.tab)));
+
+    $('#fileInput').addEventListener('change', async (e)=>{
+      const f = e.target.files[0]; if (!f) return; state.rootName = f.name; const text = await f.text();
+      // Auto-detect .jsongraph vs .json content
+      try {
+        const data = JSON.parse(text);
+        if (f.name.endsWith('.jsongraph') || (data && data.nodes && data.edges)) {
+          // Treat as jsongraph
+          state.rootName = data.rootName || f.name.replace(/\.jsongraph$/,'');
+          state.nodes = data.nodes; state.edges = data.edges; state.positions = data.positions||{};
+          state.idToNode = new Map(state.nodes.map(n=>[n.id,n]));
+          state.pathToId = new Map(state.nodes.map(n=>[n.path,n.id]));
+          $('#themeSelect').value = data.theme === 'white' ? 'white' : 'black';
+          applyTheme($('#themeSelect').value);
+          state.depthLimit = data.depth || 5; $('#depthSlider').value = state.depthLimit; $('#depthValue').textContent = `Depth: ${state.depthLimit}`;
+          renderGraph(true);
+          toast('Imported graph');
+          return;
+        }
+      } catch (e) {
+        // not JSON, let below handler warn
+      }
+      // Fallback: treat as raw JSON
+      $('#inputArea').value = text; parseInput();
+    });
+    $('#pasteBtn').addEventListener('click', async ()=>{
+      try { const t = await navigator.clipboard.readText(); $('#inputArea').value = t; parseInput(); } catch(e) { toast('Clipboard read failed'); }
+    });
+    $('#clearBtn').addEventListener('click', ()=>{ $('#inputArea').value=''; $('#inputStatus').textContent=''; state.json=null; state.nodes=[]; state.edges=[]; renderGraph(true); updateAdjacencyList([],[]); });
+    $('#exportBtn').addEventListener('click', exportGraph);
+    $('#importBtn').addEventListener('click', importGraph);
+
+    $('#modalCloseBtn').addEventListener('click', ()=> $('#nodeModal').style.display='none');
+    $('#modalCopyBtn').addEventListener('click', async ()=>{ try{ await navigator.clipboard.writeText($('#modalCode').textContent); toast('Snippet copied'); }catch(e){} });
+    $('#modalAskBtn').remove();
+
+    // Chat removed
+
+    // Keyboard shortcuts removed
+
+    // Theme switch (basic demo)
+    $('#themeSelect').addEventListener('change', ()=>{ applyTheme($('#themeSelect').value); saveLocal(); toast('Theme updated'); });
+
+    // Init
+    loadLocal();
+    if (state.rawText) parseInput();
+    window.addEventListener('resize', ()=>{ if (sim) sim.alpha(0.3).restart(); });
+
+    // Click on SVG background to dismiss modal/context
+    svg.on('click', ()=>{ $('#nodeModal').style.display='none'; $('#ctxMenu').style.display='none'; });
+  </script>
+</body>
+</html>
+
+

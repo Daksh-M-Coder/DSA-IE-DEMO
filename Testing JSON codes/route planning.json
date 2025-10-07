@@ -1,0 +1,8 @@
+{
+  "locations": {
+    "home": { "to": { "park": 2, "mall": 5 } },
+    "park": { "to": { "home": 2, "cafe": 1 } },
+    "cafe": { "to": { "park": 1, "mall": 3 } },
+    "mall": { "to": { "home": 5, "cafe": 3 } }
+  }
+}

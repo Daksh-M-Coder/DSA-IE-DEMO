@@ -1,0 +1,50 @@
+{
+  "root_000": {
+    "branch_A_001": {
+      "leaf_A1_002": "value_A1_003",
+      "leaf_A2_004": 1005,
+      "subbranch_A_006": {
+        "deep_A_007": true,
+        "array_A_008": [
+          "item_A_009",
+          { "nested_obj_A_010": "unique_val_A_011" },
+          42.12
+        ]
+      }
+    },
+    "branch_B_012": {
+      "leaf_B1_013": "value_B1_014",
+      "array_B_015": [
+        { "id": "B_obj_016", "meta": "meta_B_017" },
+        "str_B_018",
+        false
+      ]
+    },
+    "branch_C_019": {
+      "leaf_C1_020": null,
+      "leaf_C2_021": "value_C2_022",
+      "branch_C2_023": {
+        "leaf_CC1_024": "value_CC1_025",
+        "branch_CC2_026": {
+          "leaf_CCC1_027": "value_CCC1_028",
+          "array_CC_029": [
+            "CC_item_030",
+            { "final_031": "end_032" }
+          ]
+        }
+      }
+    }
+  },
+  "standalone_033": "top_level_unique_034",
+  "config_035": {
+    "user_036": "user_alpha_037",
+    "settings_038": {
+      "theme_039": "obsidian_pro_040",
+      "plugins_041": [
+        "graph_viz_042",
+        "ai_explainer_043",
+        "diff_tool_044"
+      ]
+    }
+  }
+}

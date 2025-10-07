@@ -1,0 +1,13 @@
+{
+  "project": {
+    "config": {
+      "ui": {
+        "theme": "dark",
+        "font": "Inter"
+      },
+      "api": {
+        "url": "https://api.example.com"
+      }
+    }
+  }
+}

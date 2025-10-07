@@ -1,0 +1,8 @@
+{
+  "users": {
+    "alice": { "friends": ["bob", "charlie"] },
+    "bob": { "friends": ["alice", "diana"] },
+    "charlie": { "friends": ["alice"] },
+    "diana": { "friends": ["bob"] }
+  }
+}
