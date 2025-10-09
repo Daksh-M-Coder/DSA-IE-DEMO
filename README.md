@@ -14,7 +14,7 @@ A browser-based web app that visualizes JSON files as interactive graphs, replic
 - **Dynamic Updates**: Edit JSON in textarea or prompt Gemini (e.g., “Generate BST JSON”) → graph updates live, new nodes flash green.
 - **Node Click**: Opens modal with JSON content and “Ask Gemini” button for context-aware queries (e.g., “Explain `theme`”).
 
-### Obsidian-Inspired Features
+### Graph-Inspired Features
 
 - **Interactive Controls**: Drag to pan, mousewheel to zoom (0.5x–5x, 120% indicator), “Fit to View” button.
 - **Context Menu**: Right-click node → “View Snippet,” “Find Path to Root,” “Highlight Subtree,” “Copy Key Path” (e.g., `project.settings.theme`).
