@@ -1,0 +1,14 @@
+{
+  "dept": {
+    "Sagar": "Data Structures",
+    "Aditi": "Machine Learning",
+    "Rudra": "Web Development",
+    "Isha": "Artificial Intelligence",
+    "Daksh": "Cybersecurity",
+    "Ananya": "Cloud Computing",
+    "Aadarsh": "Database Systems",
+    "Jidynesh": "Algorithms",
+    "Abhinav": "Software Engineering",
+    "Falak": "Computer Networks"
+  }
+}
