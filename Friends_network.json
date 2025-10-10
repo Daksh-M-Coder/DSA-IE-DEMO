@@ -1,0 +1,17 @@
+{
+  "dept": {
+    "name": "Computer Science",
+    "students": [
+      { "name": "Sagar", "course": "Data Structures" },
+      { "name": "Aditi", "course": "Machine Learning" },
+      { "name": "Rudra", "course": "Web Development" },
+      { "name": "Isha", "course": "Artificial Intelligence" },
+      { "name": "Daksh", "course": "Cybersecurity" },
+      { "name": "Ananya", "course": "Cloud Computing" },
+      { "name": "Aadarsh", "course": "Database Systems" },
+      { "name": "Jidynesh", "course": "Algorithms" },
+      { "name": "Abhinav", "course": "Software Engineering" },
+      { "name": "Falak", "course": "Computer Networks" }
+    ]
+  }
+}
